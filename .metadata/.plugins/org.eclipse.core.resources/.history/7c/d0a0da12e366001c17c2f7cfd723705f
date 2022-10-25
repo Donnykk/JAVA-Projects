@@ -1,0 +1,25 @@
+package Test;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.util.LinkedList;
+
+public class Demo2 {
+	public static String readFile(String in) throws Exception {
+		BufferedReader br = new BufferedReader(new FileReader(in));
+		String text = null;
+		LinkedList<String> list = new LinkedList<String>();
+		while(br.readLine()!=null) {
+			list.add(br.readLine());
+		}
+		while(list.peekLast() != null) {
+			text += list.pollLast();
+		}
+		br.close();
+ 		return text;
+	}
+	
+	public static void main(String[] args) throws Exception {
+		System.out.println(readFile("Test\\text.txt"));
+	}
+}

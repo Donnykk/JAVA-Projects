@@ -1,0 +1,39 @@
+package 第二章作业;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.UnknownHostException;
+import java.util.Scanner;
+
+public class Demo1 {
+	public static void main(String[] args) {
+		DataOnly data = new DataOnly();
+		
+		ServerSocket server = null;
+		int port;
+		try {
+			server = new ServerSocket(0, 1, InetAddress.getByName("localhost"));
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		port = server.getLocalPort();
+		System.out.println(port);
+		
+		Scanner sc = new Scanner(System.in); //用户为i,d,b赋值
+		System.out.println("请为i赋值:");
+		data.i = sc.nextInt();
+		System.out.println("请为d赋值:");
+		data.d = sc.nextDouble();
+		System.out.println("请为b赋值:");
+		data.b = sc.nextBoolean();
+		
+		System.out.println("i=" + data.i);
+		System.out.println("d=" + data.d);
+		System.out.println("b=" + data.b);
+		
+		sc.close();
+	}
+}

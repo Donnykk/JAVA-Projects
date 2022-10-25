@@ -1,0 +1,28 @@
+package µÚ12ÕÂ×÷Òµ;
+
+class myException extends Exception{
+	private static final long serialVersionUID = 8178238972430662561L;
+	private String str;
+	myException(String str) {
+		super(str);
+		this.str = str;
+	}
+	protected void show() { 
+		System.out.println("The String is: " + str);
+	}
+}
+
+public class Demo {
+	public static void tryException() throws myException{
+		throw new myException("try an exception");
+	}
+	public static void main(String[] args) {
+		try {
+			tryException();	
+		} catch(myException e) {
+			System.err.println("Caught myException");
+			e.printStackTrace();
+			e.show();
+		} 
+	}	
+}

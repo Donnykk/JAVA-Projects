@@ -1,0 +1,132 @@
+package bin.Gobang;
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.TargetDataLine;
+
+public class NetVoiceAssistant {
+	private static NetVoiceAssistant instance;
+	private static InetAddress opponentIp;
+	private static int opponentPort;
+	private static int yourPort;
+	private static boolean whePauseSend;
+	private static boolean whePauseReceive;
+	private static boolean wheStop;
+	private static Thread voiceSendThread;
+	private static Thread voiceReceiveThread;
+	private NetVoiceAssistant() {
+	}
+	public static NetVoiceAssistant getInstance() {
+		if (instance == null)
+			instance = new NetVoiceAssistant();
+		return instance;
+	}
+	public void work(InetAddress opponentIp, int opponentPort, int yourPort) {
+		NetVoiceAssistant.whePauseReceive = false;
+		NetVoiceAssistant.whePauseSend = true;
+		NetVoiceAssistant.wheStop = false;
+		NetVoiceAssistant.opponentIp = opponentIp;
+		NetVoiceAssistant.opponentPort = opponentPort;
+		NetVoiceAssistant.yourPort = yourPort;
+		createVoiceSendThread();
+		createVoiceReceiveThread();
+		voiceReceiveThread.start();
+		voiceSendThread.start();
+	}
+	public void pauseWorkSend() {
+		whePauseSend = true;
+	}
+	public void pauseWorkReceive() {
+		whePauseReceive = true;
+	}
+	public void wakeUpWorkSend() {
+		whePauseSend = false;
+	}
+	public void wakeUpWorkReceive() {
+		whePauseReceive = false;
+	}
+	public void stopWork() {
+		wheStop = true;
+	}
+	private void createVoiceReceiveThread() {
+		voiceReceiveThread =  new Thread() {
+			private AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100.0f, 16, 1, 2, 44100.0f, false);
+			private SourceDataLine line;   
+			private byte[] data;   
+			public void run() {
+				try {        
+					DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);        
+					line = (SourceDataLine) AudioSystem.getLine(info);      
+				} catch (Exception e) {        
+					e.printStackTrace();      
+				}  
+				int length=(int)(format.getFrameSize()*format.getFrameRate()/2.0f);      
+				try{
+					line.open(format);
+					line.start();        
+					DatagramSocket socket = new DatagramSocket(yourPort);        
+					while (!wheStop) {          
+						data = new byte[length];           
+						DatagramPacket dp = new DatagramPacket(data,data.length);           
+						socket.receive(dp); 
+						if (!whePauseReceive)
+							line.write(data,0,data.length);    
+						System.out.println("success receive");
+					}      
+				}catch(Exception e){        
+					e.printStackTrace();      
+				}   
+			}
+		};
+	}
+	private void createVoiceSendThread() {
+		voiceSendThread = new Thread() {
+			TargetDataLine line;
+			private byte[] data;
+			private AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100.0f, 16, 1, 2, 44100.0f, false);
+			public void run() {
+				DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);   
+				try {
+					line = (TargetDataLine) AudioSystem.getLine(info);   
+				} catch (LineUnavailableException e) {
+					e.printStackTrace();   
+				}
+				try {    
+					line.open(format, line.getBufferSize());    
+					line.start();    
+					int length = (int) (format.getFrameSize() * format.getFrameRate() / 2.0f);    
+					while (!wheStop) {     
+						data = new byte[length];     
+						line.read(data, 0, data.length);   
+						if (!whePauseSend)
+							sendData();    
+					}   
+				} catch (LineUnavailableException e) {    
+					e.printStackTrace();   
+				}
+			}
+			private void sendData() {
+				try {    
+					DatagramPacket dp = new DatagramPacket(data, data.length, opponentIp, opponentPort);    
+					DatagramSocket ds = new DatagramSocket();    
+					ds.send(dp);
+					ds.close();    
+					System.out.println("success send");
+				} catch (SocketException e) {    
+					e.printStackTrace();   
+				} catch (IOException e) {    
+					e.printStackTrace();   
+				}
+			}
+		};
+	}
+}

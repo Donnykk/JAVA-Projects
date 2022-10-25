@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.GotoLineAction$GotoLineDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="863"/>
+		<item key="DIALOG_Y_ORIGIN" value="622"/>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item key="wrap" value="true"/>
+		<item key="casesensitive" value="false"/>
+		<item key="wholeword" value="false"/>
+		<item key="incremental" value="false"/>
+		<item key="isRegEx" value="false"/>
+		<item key="selection" value="temp"/>
+		<list key="findhistory">
+			<item value="lastTurn"/>
+			<item value="remainTime"/>
+			<item value="upDate"/>
+			<item value="JOptionPane"/>
+			<item value="array"/>
+			<item value="Component"/>
+			<item value="Border"/>
+			<item value="invite"/>
+			<item value="ous"/>
+			<item value="Server"/>
+			<item value="name"/>
+			<item value="jta"/>
+			<item value="toS"/>
+			<item value="jtf"/>
+			<item value="nowm"/>
+		</list>
+		<list key="replacehistory">
+			<item value="temp"/>
+			<item value="time_left"/>
+			<item value="arr"/>
+			<item value="ing"/>
+			<item value="connecting"/>
+			<item value="out"/>
+			<item value="Client"/>
+			<item value="font"/>
+			<item value="Ta"/>
+			<item value="outText"/>
+			<item value="Tf"/>
+			<item value="now_M"/>
+			<item value="now_S"/>
+			<item value="now_H"/>
+			<item value="黑体"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="1138"/>
+		<item key="DIALOG_Y_ORIGIN" value="681"/>
+		<item key="DIALOG_WIDTH" value="405"/>
+		<item key="DIALOG_HEIGHT" value="511"/>
+		<item key="DIALOG_FONT_NAME" value="1|Microsoft YaHei UI|9.0|0|WINDOWS|1|-18|0|0|0|400|0|0|0|1|0|0|0|0|Microsoft YaHei UI"/>
+	</section>
+</section>

@@ -1,0 +1,237 @@
+package bin.Gobang;
+
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import javax.swing.JOptionPane;
+import java.io.BufferedWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
+public class NetAssistant {
+	private static NetAssistant instance;
+	private static ServerSocket serverSocket;
+	private static int port;
+	private static Socket s;
+	private static boolean opponentIsHere = false;
+	private static BufferedReader in;
+	private static BufferedWriter out;
+	private NetAssistant() {
+		try {
+			//serverSocket = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"));
+			serverSocket = new ServerSocket(1200);
+			port = serverSocket.getLocalPort();
+			startWaitOthersThread();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	};
+	private void startWaitOthersThread() {
+		new Thread() {
+			@Override
+			public void run() {
+				try {
+					while (true) {
+						if (s != null) {
+							Socket tempS = serverSocket.accept();
+							BufferedWriter tempOut = new BufferedWriter(new OutputStreamWriter(tempS.getOutputStream()));
+							tempOut.write("HasStarted\n");
+							tempOut.flush();
+							tempS.close();
+						}else {
+							Socket tempS = serverSocket.accept();
+							BufferedWriter tempOut = new BufferedWriter(new OutputStreamWriter(tempS.getOutputStream()));
+							if (s == null) {
+								int aggree = Controller.getInstance().someoneWantToConnectWithYou(); 
+								if (aggree == 0) {
+									tempOut.write("ConnectAggree\n");
+									tempOut.flush();
+									s = tempS;
+									successfullyConnect(Model.WHIET);
+								}else {
+									tempOut.write("ConnectDisaggree\n");
+									tempOut.flush();
+									tempS.close();
+									s = null;
+								}
+							}
+							else {
+								tempOut.write("HasStarted\n");
+								tempOut.flush();
+								tempS.close();
+								s = null;
+							}
+						}
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}.start();
+	}
+	public static NetAssistant getInstance() {
+		if (instance == null)
+			instance = new NetAssistant();
+		return instance;
+	}
+	public void tryConnect(String iP, String port) {
+		try {
+			s = new Socket(iP, Integer.parseInt(port));
+			View.getInstance().showMessage("请等待");
+			if (s == null)
+				JOptionPane.showMessageDialog(null, "失败啦", "Over", JOptionPane.DEFAULT_OPTION);
+			else {
+				new Thread() {
+					@Override
+					public void run() {
+						try {
+							BufferedReader tempIn = new  BufferedReader(new InputStreamReader(s.getInputStream()));
+							while (true) {
+								String result = tempIn.readLine();
+								if (result.equals("ConnectAggree")) {
+									successfullyConnect(Model.BLACK);
+									return;
+								}else if (result.equals("ConnectDisaggree")){
+									View.getInstance().showMessage("对方拒绝");;
+									s = null;
+									return;
+								}else if (result.equals("HasStarted")) {
+									View.getInstance().showMessage("对方正在游戏");
+									s = null;
+									return;
+								}
+							}
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}.start();
+			}
+		} catch (NumberFormatException | IOException e) {
+			if (e.getLocalizedMessage().equals("Connection refused: connect")) {
+				View.getInstance().showMessage("对方正在游戏");
+				s = null;
+			}
+		}
+	}
+	private void successfullyConnect(int color) {
+		try {
+			opponentIsHere = true;
+			in = new BufferedReader(new InputStreamReader(s.getInputStream()));
+			out = new BufferedWriter(new OutputStreamWriter(s.getOutputStream()));
+			Controller.getInstance().successfullyConnect(color);
+			NetVoiceAssistant.getInstance().work(s.getInetAddress(), s.getPort(), s.getLocalPort());
+			startProcessMessageThead();
+			createBeatThread();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	private void createBeatThread() {
+		new Thread() {
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						sleep(30000);
+						if (!opponentIsHere) {
+							opponentLost();
+							return;
+						}
+						try {
+							sendMessage("ZaiFou");
+						} catch (IOException e) {
+							opponentLost();
+						}
+						opponentIsHere = false;
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}				
+			}
+		}.start();
+	}
+	private void opponentLost() {
+		Controller.getInstance().opponentLost();
+	}
+	private void startProcessMessageThead() {
+		new Thread() {
+			@Override
+			public void run() {
+				while (true) {
+					try {
+						String text = in.readLine();
+						if (text == null)
+							continue;
+						if (text.startsWith("XiaQi")) {
+							String vars = text.substring(text.indexOf(':') + 1);
+							int row = Integer.parseInt(vars.substring(0, vars.indexOf(',')));
+							vars = vars.substring(vars.indexOf(',') + 1);
+							int col = Integer.parseInt(vars.substring(0, vars.indexOf(',')));
+							vars = vars.substring(vars.indexOf(',') + 1);
+							int color = Integer.parseInt(vars);
+							Controller.getInstance().putChess(row, col, color);
+						}else if (text.equals("ZaiFou")) {
+							opponentIsHere = true;
+							sendMessage("Zai");
+						}else if (text.equals("Zai")) {
+							opponentIsHere = true;
+						}else if (text.startsWith("Message")) {
+							String content = "对方：" + text.substring(text.indexOf(':') + 1);
+							Controller.getInstance().getMessageFromOpponent(content);
+						}else if (text.equals("TryToPlay")) {
+							int aggree = Controller.getInstance().opponentWantToStartPlay();
+							if (aggree == 0)
+								sendMessage("AggreeToStartPlay");
+							else if (aggree == 1)
+								sendMessage("DisaggreeToStartPlay");
+						}else if (text.equals("AggreeToStartPlay")) {
+							Controller.getInstance().opponentAggreeStartPlay();
+						}else if (text.equals("DisaggreeToStartPlay")) {
+							Controller.getInstance().opponentRefuseStartPlay();
+						}else if (text.startsWith("Win")) {
+							int color = Integer.parseInt(text.substring(text.indexOf(':') + 1));
+							Controller.getInstance().gameOver(color);
+						}else if (text.startsWith("HuiQi")) {
+							String op = text.substring(text.indexOf(':') + 1);
+							if (op.equals("Want")) {
+								int aggree = Controller.getInstance().opponentWantToRegretChess();
+								if (aggree == 0) {
+									sendMessage("HuiQi:Aggree");
+								}else {
+									sendMessage("HuiQi:Refuse");
+								}
+							}else if (op.equals("Refuse")) {
+								Controller.getInstance().regretChessWasRefused();
+							}else if (op.equals("Aggree")) {
+								Controller.getInstance().regretChessWasAggreed();
+							}
+						}else if (text.equals("TimeOver")) {
+							Controller.getInstance().opponentTimeOver();
+						}
+					} catch (IOException e) {
+						opponentLost();
+						return;
+					}
+				}
+			}
+		}.start();
+	}
+	public String getPort() {
+		return Integer.toString(port);
+	}
+	public void putChess(int row, int col, int color) {
+		String output = "XiaQi:" + row + "," + col + "," + color;
+		try {
+			sendMessage(output);
+		} catch (IOException e) {
+			opponentLost();
+		}
+	}
+	public void sendMessage (String text) throws IOException {
+		out.write(text + "\n");
+		out.flush();
+	}
+}

@@ -1,0 +1,147 @@
+package Gobang.Client;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.ScrollPaneConstants;
+import javax.swing.border.EtchedBorder;
+import javax.swing.border.TitledBorder;
+
+public class View1 extends JFrame {
+
+	private static final long serialVersionUID = 1L;
+	private static View1 instance;
+	private static JButton inviteToPlay;
+	private static JTextField message;
+	private static JButton sendMessage;
+	private static JTextArea messageArea;
+	private static DefaultListModel<String> players;
+	private static JList<String> allPlayers;
+	public static View1 getInstance() {
+		if (instance == null)
+			instance = new View1();
+		return instance;
+	}
+	private View1() {
+		initGraph();
+		bindListener();
+	}
+	private void initGraph() {
+		this.setTitle("大厅");
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		this.setSize(800, 450);
+		this.setLayout(new BorderLayout());
+		JPanel gamerPanel = new JPanel();
+		gamerPanel.setLayout(new BorderLayout());
+		players = new DefaultListModel<>();
+		allPlayers = new JList<String>(players);
+		gamerPanel.add(allPlayers, BorderLayout.CENTER);
+		inviteToPlay = new JButton("邀请游戏");
+		gamerPanel.add(inviteToPlay, BorderLayout.SOUTH);
+		
+		JPanel messagePanel = new JPanel();
+		messagePanel.setLayout(new BorderLayout());
+		messageArea = new JTextArea();
+		messageArea.setBorder(new TitledBorder(new EtchedBorder(), "世界消息"));
+		messageArea.setEditable(false);
+		messageArea.setLineWrap(true);
+		messageArea.setWrapStyleWord(true);
+		JScrollPane scrollPane = new JScrollPane(
+                messageArea,
+                ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        );
+		messagePanel.add(scrollPane, BorderLayout.CENTER);
+		JPanel messageEditPanel = new JPanel();
+		messageEditPanel.setLayout(new FlowLayout());
+		message = new JTextField();
+		message.setPreferredSize(new Dimension(200, 20));
+		sendMessage = new JButton("发送");
+		messageEditPanel.add(message);
+		messageEditPanel.add(sendMessage);
+		messagePanel.add(messageEditPanel, BorderLayout.SOUTH);
+		messagePanel.setPreferredSize(new Dimension(400, 500));
+		
+		this.add(gamerPanel, BorderLayout.CENTER);
+		this.add(messagePanel, BorderLayout.EAST);
+		this.setVisible(true);
+	}
+	private void bindListener() {
+		inviteToPlay.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				String opponentName = allPlayers.getSelectedValue();
+				if (opponentName == null || opponentName.equals(Controller.getInstance().getYourName()))
+					return;
+				Controller.getInstance().tryToPlayWithOthers(opponentName);
+			}
+		});
+		sendMessage.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				if (e.getComponent() == null)
+					return;
+				String text = message.getText();
+				boolean success = Controller.getInstance().sendMessageToWorld(text);
+				if (success)
+					message.setText("");
+			}
+		});
+		message.addKeyListener(new KeyAdapter() {
+			@Override
+			public void keyTyped(KeyEvent e) {
+				char c = e.getKeyChar();
+				if (c != KeyEvent.VK_ENTER)
+					return;
+				String text = message.getText();
+				boolean success = Controller.getInstance().sendMessageToWorld(text);
+				if (success)
+					message.setText("");
+			}
+		});
+	}
+	public void exec() {
+		if (instance == null)
+			instance = new View1();
+		else
+			instance.setVisible(true);
+	}
+	public void exit() {
+		if (instance != null)
+			instance.setVisible(false);
+	}
+	public void refreshPlayerList(String names) {
+		players.clear();
+		String nowName = "";
+		for (int i = 0; i < names.length(); i++) {
+			if (names.charAt(i) == ',') {
+				players.addElement(nowName);
+				nowName = "";
+			}else {
+				nowName += names.charAt(i);
+			}
+		}
+		players.addElement(nowName);
+	}
+	public boolean isWork() {
+		if (instance == null)
+			instance = new View1();
+		return instance.isVisible();
+	}
+	public void showWorldMessage(String text) {
+		messageArea.append(text + "\n");
+		messageArea.setCaretPosition(messageArea.getText().length());
+	}
+}

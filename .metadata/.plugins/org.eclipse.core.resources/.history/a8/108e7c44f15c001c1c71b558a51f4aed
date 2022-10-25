@@ -1,0 +1,249 @@
+package bin.Gobang;
+
+import java.io.IOException;
+import java.util.LinkedList;
+import javax.swing.*;
+
+public class Controller {
+	private static Controller instance = null;
+	private static int color;
+	private static boolean yourTurn = false;
+	private static boolean gameBegin = false;
+	private static boolean connecting = false;
+	private static int perTime = 30;
+	private static int remainTime = 0;
+	//private static boolean timeUseUp = false;
+	private static LinkedList<Dot> chessRecord;
+	private Controller() {
+		chessRecord = new LinkedList<>();
+	};
+	public static Controller getInstance() {
+		if (instance == null)
+			instance = new Controller();
+		return instance;
+	}
+	public static void setColor(int color) {
+		Controller.color = color;
+	}
+	public void putChess(int row, int col) {
+		if (yourTurn == false || gameBegin == false)
+			return;
+		boolean success = Model.getInstance().putChess(row, col, color);
+		if (success) {
+			chessRecord.add(new Dot(row, col, color));
+			View.getInstance().playPutChessMusic("music/putChessMusic.wav");
+			NetAssistant.getInstance().putChess(row, col, color);
+			View.getInstance().upDate();
+			boolean win = Model.getInstance().ifWin();
+			if (win == true){
+				try {
+					NetAssistant.getInstance().sendMessage("Win:" + color);
+				} catch (IOException e) {
+					opponentLost();
+				}
+				gameOver(color);
+			}
+			yourTurn = false;
+		}
+	}
+	public void gameOver(int color) {
+		gameBegin = false;
+		boolean youWin = color == Controller.color ? true : false;
+		View.getInstance().gameOverInit(youWin);
+	}
+	public static void main(String[] args) {
+		View.exec();
+	}
+	public void tryToInviteGamer() {
+		String targetAddress = JOptionPane.showInputDialog(null, "格式：IP:Port", "请输入对方地址", JOptionPane.PLAIN_MESSAGE);
+		if (targetAddress == null || targetAddress.indexOf(':') == -1)
+			return;
+		String Port = targetAddress.substring(targetAddress.indexOf(':') + 1);
+		String IP = targetAddress.substring(0, targetAddress.indexOf(':'));
+		if (Port == null || IP == null || Port.equals("") || IP.equals(""))
+			return;
+		NetAssistant.getInstance().tryConnect(IP, Port);
+	}
+	public void successfullyConnect(int color) {
+		chessRecord.clear();
+		connecting = true;
+		Controller.color = color;
+		if (color == Model.BLACK)
+			yourTurn = true;
+		Model.getInstance().clearChessBoard();
+		View.getInstance().successfullyConnectInit();
+	}
+	public void putChess(int row, int col, int color) {
+		yourTurn = true;
+		chessRecord.add(new Dot(row, col, color));
+		Model.getInstance().putChess(row, col, color);
+		View.getInstance().playPutChessMusic("music/putChessMusic.wav");
+		View.getInstance().upDate();
+	}
+	public void opponentAggreeStartPlay() {
+		startPlay();
+	}
+	public void tryToStartPlay() {
+		if (connecting == false) {
+			View.getInstance().showMessage("请先邀请玩家");
+			return;
+		}
+		try {
+			NetAssistant.getInstance().sendMessage("TryToPlay");
+		} catch (IOException e) {
+			opponentLost();
+		}
+	}
+	public int opponentWantToStartPlay() {
+		int aggree = JOptionPane.showConfirmDialog(null, "对方希望开始游戏","开吗？",JOptionPane.YES_NO_OPTION);
+		if (aggree == 0)
+			startPlay();
+		return aggree;
+	}
+	private void startPlay() {
+		gameBegin = true;
+		chessRecord.clear();
+		createTimingThread();
+		Model.getInstance().clearChessBoard();
+		View.getInstance().startPlayInit();
+	}
+	private void createTimingThread() {
+		new Thread() {
+			@Override
+			public void run() {
+				remainTime = perTime;
+				boolean lastTurn = false;
+				long baseTime = System.currentTimeMillis();
+				while (true) {
+					try {
+						sleep(100);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+					if (gameBegin == false)
+						return;
+					if (yourTurn != lastTurn) {
+						lastTurn = yourTurn;
+						remainTime = perTime;
+						baseTime = System.currentTimeMillis();
+					}else {
+						long nowTime = System.currentTimeMillis();
+						long passTime = (nowTime - baseTime) / 1000;
+						if (passTime <= perTime)
+							remainTime = (int) (perTime - passTime);
+						else {
+							timeOver();
+						}
+						View.getInstance().setRemainTime(remainTime, yourTurn);
+					}
+				}
+			}
+		}.start();
+	}
+	private void timeOver() {
+		if (yourTurn == true) {
+			yourTurn = false;
+			try {
+				NetAssistant.getInstance().sendMessage("TimeOver");
+			} catch (IOException e) {
+				opponentLost();
+			}			
+		}
+	}
+	public int someoneWantToConnectWithYou() {
+		return JOptionPane.showConfirmDialog(null, "有人想连你","玩吗？",JOptionPane.YES_NO_OPTION);
+	}
+	public void opponentRefuseStartPlay() {
+		View.getInstance().showMessage("对方拒绝开局");
+	}
+	public void opponentLost() {
+		if (connecting == false)
+			return;
+		connecting = false;
+		gameBegin = false;
+		JOptionPane.showMessageDialog(null, "对面可能掉线了/(ㄒoㄒ)/~~", "Over", JOptionPane.DEFAULT_OPTION);
+		NetVoiceAssistant.getInstance().stopWork();
+		View.getInstance().opponentLostInit();
+	}
+	public boolean sendMessageToOpponent(String text) {
+		if (connecting == false)
+			return false;
+		View.getInstance().showMessage("你：" + text);
+		try {
+			NetAssistant.getInstance().sendMessage("Message:" + text);
+		} catch (IOException e) {
+			opponentLost();
+		}
+		return true;
+	}
+	public void getMessageFromOpponent(String text) {
+		View.getInstance().showMessage(text);
+	}
+	public void wantToRegretChess() {
+		if (yourTurn == true)
+			return;
+		try {
+			NetAssistant.getInstance().sendMessage("HuiQi:Want");
+		} catch (IOException e) {
+			opponentLost();
+		}
+	}
+	public int opponentWantToRegretChess() {
+		int aggree = JOptionPane.showConfirmDialog(null, "对方希望悔棋","允许吗？",JOptionPane.YES_NO_OPTION);
+		if (aggree == 0) {
+			aggreeOpponentToRegretChess();
+		}else {
+			refuseOpponentToRegretChess();
+		}
+		return aggree;
+	}
+	private void refuseOpponentToRegretChess() {
+		
+	}
+	private void aggreeOpponentToRegretChess() {
+		yourTurn = false;
+		chessRecord.removeLast();
+		Model.getInstance().regretChess();
+		View.getInstance().upDate();
+	}
+	public void regretChessWasRefused() {
+		View.getInstance().showMessage("对方拒绝悔棋");
+	}
+	public void regretChessWasAggreed() {
+		yourTurn = true;
+		chessRecord.removeLast();
+		Model.getInstance().regretChess();
+		View.getInstance().upDate();
+		View.getInstance().showMessage("对方统一悔棋");
+	}
+	public void opponentTimeOver() {
+		yourTurn = true;
+	}
+	public int getLastRow() {
+		if (chessRecord == null || chessRecord.isEmpty())
+			return -1;
+		Dot lastDot = chessRecord.getLast();
+		return lastDot.getRow();
+	}
+	public int getLastCol() {
+		if (chessRecord == null || chessRecord.isEmpty())
+			return -1;
+		Dot lastDot = chessRecord.getLast();
+		return lastDot.getCol();
+	}
+	public LinkedList<Dot> getChessRecord() {
+		return chessRecord;
+	}
+	public void pauseMicroPhone() {
+		NetVoiceAssistant.getInstance().pauseWorkSend();
+	}
+	public void wakeUpMicroPhone() {
+		NetVoiceAssistant.getInstance().wakeUpWorkSend();
+	}
+	public void pauseSpeaker() {
+		NetVoiceAssistant.getInstance().pauseWorkReceive();
+	}
+	public void wakeUpSpeaker() {
+		NetVoiceAssistant.getInstance().wakeUpWorkReceive();
+	}
+}

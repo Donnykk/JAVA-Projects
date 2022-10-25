@@ -1,0 +1,20 @@
+package Test_Review;
+
+class boom {
+	String str;
+
+	public void show() {
+		if(str == null) {
+			System.out.println("????");
+		}
+		else
+			System.out.println(str);
+	}
+}
+
+public class Demo1 {
+	public static void main(String[] args) {
+		boom b = new boom();
+		b.show();
+	}
+}

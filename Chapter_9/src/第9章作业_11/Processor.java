@@ -1,0 +1,6 @@
+package µÚ9ÕÂ×÷Òµ_11;
+
+public interface Processor {
+	  String name();
+	  Object process(Object input);
+	} 
